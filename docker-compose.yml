@@ -5,6 +5,10 @@ services:
       dockerfile: docker/php/Dockerfile
     volumes:
       - ./src:/var/www
+      - laravel_framework_views:/var/www/storage/framework/views
+      - laravel_framework_cache:/var/www/storage/framework/cache
+      - laravel_framework_sessions:/var/www/storage/framework/sessions
+      - laravel_bootstrap_cache:/var/www/bootstrap/cache
     working_dir: /var/www
     networks:
       - uniph
@@ -23,20 +27,24 @@ services:
       - uniph
 
   db:
-    image: mysql:8.0
+    image: postgres:16-alpine
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: uniph
-    command: --log-bin-trust-function-creators=1
+      POSTGRES_DB: uniph
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - pg_data:/var/lib/postgresql/data
     networks:
       - uniph
 
 volumes:
-  mysql_data:
+  pg_data:
+  laravel_framework_views:
+  laravel_framework_cache:
+  laravel_framework_sessions:
+  laravel_bootstrap_cache:
 
 networks:
   uniph:

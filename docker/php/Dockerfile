@@ -1,12 +1,12 @@
-FROM php:8.2-fpm
+FROM php:8.4-fpm
 
 WORKDIR /var/www
 
 RUN apt update && apt install -y \
     git unzip curl \
     libpng-dev libjpeg-dev libfreetype6-dev \
-    libonig-dev libzip-dev zip \
-    && docker-php-ext-install pdo pdo_mysql mbstring zip exif pcntl \
+    libonig-dev libzip-dev zip libpq-dev \
+    && docker-php-ext-install pdo pdo_mysql pdo_pgsql mbstring zip exif pcntl \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install gd \
     && apt clean \
