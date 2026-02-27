@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
+    depends_on:
+      - db
+      - redis
     volumes:
       - ./src:/var/www
       - laravel_framework_views:/var/www/storage/framework/views
@@ -36,6 +39,13 @@ services:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+    networks:
+      - uniph
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
     networks:
       - uniph
 

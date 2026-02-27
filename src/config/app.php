@@ -123,4 +123,18 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Rate limit registros (alta concurrencia)
+    |--------------------------------------------------------------------------
+    |
+    | Límite de peticiones por minuto para endpoints de registro masivo:
+    | POST /api/votos, POST /api/asistentes. Por defecto 1200 para soportar
+    | ≥1000 registros/min (votos y asistentes en hora pico).
+    | Ajustable vía REGISTROS_RATE_LIMIT en .env.
+    |
+    */
+
+    'registros_rate_limit' => env('REGISTROS_RATE_LIMIT', 1200),
+
 ];

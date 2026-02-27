@@ -20,6 +20,11 @@ class DatabaseSeeder extends Seeder
         User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
+            'rol' => 'SUPER_ADMIN',
+            'tipo_usuario' => 'ADMINISTRATIVO',
+            'documento' => '1000000001',
+            'telefono' => '3000000001',
+            'activo' => true,
         ]);
     }
 }

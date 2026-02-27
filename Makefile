@@ -1,4 +1,4 @@
-.PHONY: up down start stop restart ps logs app db artisan composer migrate key env init fix-perms show-urls
+.PHONY: up down start stop restart ps logs app db artisan composer migrate key env init fix-perms show-urls horizon queue test
 
 up:
 	@echo "=> Levantando contenedores (build incluido)..."
@@ -75,8 +75,23 @@ show-urls:
 	@echo ""
 	@echo "=> Accesos:"
 	@echo "   App (Nginx): http://localhost:8000"
+	@echo "   Horizon:     http://localhost:8000/horizon"
+	@echo "   Docs API:    http://localhost:8000/docs/api"
 	@echo "   PostgreSQL:  localhost:5432 (postgres/postgres, db: uniph)"
+	@echo "   Redis:       localhost:6379"
 	@echo ""
+
+horizon:
+	docker compose exec app php artisan horizon
+
+queue:
+	docker compose exec app php artisan queue:work redis --queue=votaciones,whatsapp,default
+
+test:
+	docker compose exec app php artisan test
+
+docs-export:
+	docker compose exec app php artisan scramble:export
 
 %:
 	@:

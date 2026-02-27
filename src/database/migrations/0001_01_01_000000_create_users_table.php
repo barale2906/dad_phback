@@ -12,28 +12,28 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
+            $table->id()->comment('Identificador unico del usuario.');
+            $table->string('name')->comment('Nombre completo del usuario.');
+            $table->string('email')->unique()->comment('Correo electronico unico del usuario.');
+            $table->timestamp('email_verified_at')->nullable()->comment('Fecha de verificacion del correo electronico.');
+            $table->string('password')->comment('Contrasena hasheada del usuario.');
+            $table->rememberToken()->comment('Token de sesion persistente para recordarme.');
             $table->timestamps();
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {
-            $table->string('email')->primary();
-            $table->string('token');
-            $table->timestamp('created_at')->nullable();
+            $table->string('email')->primary()->comment('Correo del usuario que solicita recuperar su contrasena.');
+            $table->string('token')->comment('Token de restablecimiento de contrasena.');
+            $table->timestamp('created_at')->nullable()->comment('Fecha de creacion del token de restablecimiento.');
         });
 
         Schema::create('sessions', function (Blueprint $table) {
-            $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
-            $table->string('ip_address', 45)->nullable();
-            $table->text('user_agent')->nullable();
-            $table->longText('payload');
-            $table->integer('last_activity')->index();
+            $table->string('id')->primary()->comment('Identificador unico de la sesion.');
+            $table->foreignId('user_id')->nullable()->index()->comment('Usuario asociado a la sesion, cuando existe autenticacion.');
+            $table->string('ip_address', 45)->nullable()->comment('Direccion IP de origen de la sesion.');
+            $table->text('user_agent')->nullable()->comment('Agente de usuario del navegador o cliente.');
+            $table->longText('payload')->comment('Datos serializados de la sesion.');
+            $table->integer('last_activity')->index()->comment('Marca de tiempo de la ultima actividad de la sesion.');
         });
     }
 

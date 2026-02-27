@@ -1,0 +1,41 @@
+name: Documentación API
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  openapi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+
+      - name: Install dependencies
+        run: |
+          cd src
+          composer install --no-interaction --prefer-dist
+
+      - name: Copy environment
+        run: cp src/.env.example src/.env
+
+      - name: Generate app key
+        run: cd src && php artisan key:generate
+
+      - name: Generate OpenAPI
+        run: cd src && php artisan scramble:export
+
+      - name: Validate OpenAPI JSON
+        run: |
+          cd src
+          if [ ! -f api.json ]; then
+            echo "Error: api.json no se generó"
+            exit 1
+          fi
+          php -r "json_decode(file_get_contents('api.json')); exit(json_last_error() === JSON_ERROR_NONE ? 0 : 1);"
