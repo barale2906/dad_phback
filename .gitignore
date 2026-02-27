@@ -1,0 +1,27 @@
+# Entorno
+.env
+src/.env
+
+# PHP / Laravel
+src/vendor
+src/storage/*.key
+src/storage/logs
+src/bootstrap/cache
+
+# Node
+node_modules
+src/node_modules
+
+# .NET (por si se agregan utilidades)
+bin
+obj
+
+# Logs
+*.log
+
+# Docker
+*.pid
+
+# Documentación local (no versionar)
+docs/
+
