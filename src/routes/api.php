@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\VotoController;
 use App\Http\Controllers\Api\QuorumController;
 use App\Http\Controllers\Api\ReporteReunionController;
 use App\Http\Controllers\Api\MetricsController;
+use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\WhatsAppWebhookController;
 use App\Http\Controllers\Api\InternalSimulateMessageController;
 use Illuminate\Support\Facades\Route;
@@ -45,6 +46,8 @@ Route::middleware(['installed', 'auth:sanctum'])->group(function (): void {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
     Route::post('/change-password', [AuthController::class, 'changePassword']);
+
+    Route::get('/menu', MenuController::class);
 
     Route::get('/ph', [PhController::class, 'show']);
     Route::put('/ph', [PhController::class, 'update'])->middleware('role:SUPER_ADMIN,ADMIN_PH');
