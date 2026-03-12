@@ -8,6 +8,10 @@ use RuntimeException;
 
 class ReunionService
 {
+    public function __construct(private readonly QuorumService $quorumService)
+    {
+    }
+
     public function create(array $data): Reunion
     {
         return DB::transaction(function () use ($data): Reunion {
@@ -58,15 +62,19 @@ class ReunionService
             throw new RuntimeException('No se puede iniciar una reunion finalizada.');
         }
 
-        $convocatoria = $reunion->convocatoria;
-        if (! $convocatoria || ! in_array($convocatoria->estado, ['enviada', 'publicada'], true)) {
-            throw new RuntimeException('No se puede iniciar la reunion sin convocatoria valida (enviada o publicada).');
-        }
 
         $reunion->update([
             'estado' => 'en_curso',
             'inicio_at' => now(),
         ]);
+
+        $yaExisteQuorum = $reunion->preguntas()
+            ->where('tipo', 'QUORUM_CHECK')
+            ->exists();
+
+        if (! $yaExisteQuorum) {
+            $this->quorumService->crearPreguntaQuorum($reunion);
+        }
 
         return $reunion->fresh(['zonasComunes', 'convocatoria']);
     }

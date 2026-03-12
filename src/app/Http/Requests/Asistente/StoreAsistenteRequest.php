@@ -14,16 +14,36 @@ class StoreAsistenteRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'usuario_id' => ['nullable', 'exists:users,id'],
-            'nombre' => ['required', 'string', 'max:255'],
-            'documento' => ['nullable', 'string', 'max:50'],
             'telefono' => ['nullable', 'string', 'max:20'],
-            'barcode_numero' => ['nullable', 'integer', 'min:1'],
-            'tipo_asistente' => ['required', 'in:PROPIETARIO,RESIDENTE,APODERADO,INVITADO'],
+            'codigo_barras' => ['nullable', 'integer', 'min:1'],
             'inmuebles' => ['required', 'array', 'min:1'],
             'inmuebles.*.inmueble_id' => ['required', 'exists:inmuebles,id'],
             'inmuebles.*.coeficiente' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'inmuebles.*.poder_url' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $tieneTelefono = filled($this->input('telefono'));
+            $tieneBarcode = filled($this->input('codigo_barras'));
+
+            if (! $tieneTelefono && ! $tieneBarcode) {
+                $validator->errors()->add(
+                    'identificador',
+                    'Debe indicar al menos telefono o codigo_barras para identificar al asistente.'
+                );
+            }
+        });
+    }
+
+    public function messages(): array
+    {
+        return [
+            'inmuebles.required' => 'Debe asociar al menos un inmueble al asistente.',
+            'inmuebles.*.inmueble_id.required' => 'Cada inmueble debe tener un inmueble_id válido.',
+            'inmuebles.*.inmueble_id.exists' => 'El inmueble indicado no existe.',
         ];
     }
 }

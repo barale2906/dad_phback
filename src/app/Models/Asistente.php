@@ -2,32 +2,24 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Asistente extends Model
 {
-    use HasFactory, SoftDeletes;
-
     protected $table = 'asistentes';
 
     protected $fillable = [
-        'usuario_id',
-        'nombre',
-        'documento',
+        'reunion_id',
         'telefono',
-        'codigo_acceso',
-        'barcode_numero',
-        'tipo_asistente',
+        'codigo_barras',
     ];
 
-    public function usuario(): BelongsTo
+    public function reunion(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'usuario_id');
+        return $this->belongsTo(Reunion::class, 'reunion_id');
     }
 
     public function inmuebles(): BelongsToMany
@@ -37,6 +29,11 @@ class Asistente extends Model
             ->withTimestamps();
     }
 
+    /**
+     * Votos registrados por este asistente.
+     * Se mantiene para trazabilidad en reportes y actas:
+     * permite saber qué asistente votó por qué inmuebles en esta reunión.
+     */
     public function votos(): HasMany
     {
         return $this->hasMany(Voto::class, 'asistente_id');

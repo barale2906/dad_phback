@@ -16,8 +16,9 @@ class StorePreguntaRequest extends FormRequest
         return [
             'reunion_id' => ['required', 'exists:reuniones,id'],
             'pregunta' => ['required', 'string', 'max:1000'],
+            'tipo' => ['sometimes', 'in:VOTACION,QUORUM_CHECK'],
             'estado' => ['sometimes', 'in:inactiva,abierta,cerrada,cancelada'],
-            'orden' => ['sometimes', 'integer', 'min:1'],
+            'orden' => ['sometimes', 'nullable', 'integer', 'min:1'],
         ];
     }
 }

@@ -17,6 +17,7 @@ class Pregunta extends Model
     protected $fillable = [
         'reunion_id',
         'pregunta',
+        'tipo',
         'estado',
         'apertura_at',
         'cierre_at',

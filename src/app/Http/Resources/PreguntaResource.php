@@ -13,6 +13,7 @@ class PreguntaResource extends JsonResource
             'id' => $this->id,
             'reunion_id' => $this->reunion_id,
             'pregunta' => $this->pregunta,
+            'tipo' => $this->tipo,
             'estado' => $this->estado,
             'apertura_at' => optional($this->apertura_at)?->toIso8601String(),
             'cierre_at' => optional($this->cierre_at)?->toIso8601String(),

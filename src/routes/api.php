@@ -66,13 +66,19 @@ Route::middleware(['installed', 'auth:sanctum'])->group(function (): void {
     Route::post('/users/{user}/inmuebles', [UserInmuebleController::class, 'store'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
     Route::delete('/users/{user}/inmuebles/{inmueble}', [UserInmuebleController::class, 'destroy'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
 
-    Route::get('/asistentes', [AsistenteController::class, 'index']);
-    Route::post('/asistentes', [AsistenteController::class, 'store'])
+    // Asistentes scoped bajo reunión
+    Route::get('/reuniones/{reunion}/asistentes', [AsistenteController::class, 'index']);
+    Route::post('/reuniones/{reunion}/asistentes', [AsistenteController::class, 'store'])
         ->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA', 'throttle:registros');
-    Route::get('/asistentes/{asistente}', [AsistenteController::class, 'show']);
-    Route::put('/asistentes/{asistente}', [AsistenteController::class, 'update'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
-    Route::patch('/asistentes/{asistente}', [AsistenteController::class, 'update'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
-    Route::delete('/asistentes/{asistente}', [AsistenteController::class, 'destroy'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
+    Route::get('/reuniones/{reunion}/asistentes/{asistente}', [AsistenteController::class, 'show']);
+    Route::delete('/reuniones/{reunion}/asistentes/{asistente}', [AsistenteController::class, 'destroy'])
+        ->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
+
+    // Endpoints de puerta (globales — no requieren conocer la reunión en la URL)
+    Route::post('/asistentes/check-in-by-codigo', [AsistenteController::class, 'checkInByCodigo'])
+        ->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
+    Route::post('/asistentes/{asistente}/check-in', [AsistenteController::class, 'checkIn'])
+        ->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
 
     Route::post('/barcodes/print', [BarcodeController::class, 'print'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
 
@@ -87,6 +93,7 @@ Route::middleware(['installed', 'auth:sanctum'])->group(function (): void {
 
     Route::get('/reuniones/{reunion}/orden-dia', [OrdenDiaController::class, 'index']);
     Route::post('/reuniones/{reunion}/orden-dia', [OrdenDiaController::class, 'store'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
+    Route::post('/reuniones/{reunion}/orden-dia/carga-masiva', [OrdenDiaController::class, 'cargaMasiva'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
     Route::put('/reuniones/{reunion}/orden-dia/reordenar', [OrdenDiaController::class, 'reordenar'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
     Route::put('/orden-dia/{item}', [OrdenDiaController::class, 'update'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
     Route::patch('/orden-dia/{item}', [OrdenDiaController::class, 'update'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
@@ -115,6 +122,7 @@ Route::middleware(['installed', 'auth:sanctum'])->group(function (): void {
     Route::post('/preguntas/{pregunta}/abrir', [PreguntaController::class, 'abrir'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
     Route::post('/preguntas/{pregunta}/cerrar', [PreguntaController::class, 'cerrar'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
     Route::get('/preguntas/{pregunta}/resultados', [PreguntaController::class, 'resultados']);
+    Route::get('/preguntas/{pregunta}/inmuebles-votos', [PreguntaController::class, 'inmuebleVotos']);
 
     Route::get('/opciones', [OpcionController::class, 'index']);
     Route::post('/opciones', [OpcionController::class, 'store'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');

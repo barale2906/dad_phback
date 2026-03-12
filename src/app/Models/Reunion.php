@@ -45,6 +45,11 @@ class Reunion extends Model
         return $this->hasOne(Convocatoria::class, 'reunion_id');
     }
 
+    public function asistentes(): HasMany
+    {
+        return $this->hasMany(Asistente::class, 'reunion_id');
+    }
+
     public function preguntas(): HasMany
     {
         return $this->hasMany(Pregunta::class, 'reunion_id');

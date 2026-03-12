@@ -15,6 +15,7 @@ class UpdatePreguntaRequest extends FormRequest
     {
         return [
             'pregunta' => ['required', 'string', 'max:1000'],
+            'tipo' => ['sometimes', 'in:VOTACION,QUORUM_CHECK'],
             'estado' => ['required', 'in:inactiva,abierta,cerrada,cancelada'],
             'orden' => ['required', 'integer', 'min:1'],
         ];

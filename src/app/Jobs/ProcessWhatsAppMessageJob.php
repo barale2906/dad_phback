@@ -52,28 +52,35 @@ class ProcessWhatsAppMessageJob implements ShouldQueue
             return;
         }
 
-        $asistente = Asistente::query()
-            ->whereNotNull('telefono')
-            ->where('telefono', '!=', '')
-            ->get()
-            ->first(function (Asistente $a) use ($phoneDigits): bool {
-                $stored = preg_replace('/\D/', '', (string) $a->telefono);
-                return $stored === $phoneDigits
-                    || str_ends_with($stored, $phoneDigits)
-                    || str_ends_with($phoneDigits, $stored);
-            });
-
-        if (! $asistente) {
-            Log::info('WhatsApp: asistente no encontrado para teléfono', ['phone' => $this->phone]);
-            return;
-        }
-
+        // Primero localizar la reunión en curso — los asistentes son por reunión
         $reunion = Reunion::query()
             ->where('estado', 'en_curso')
             ->first();
 
         if (! $reunion) {
             Log::info('WhatsApp: no hay reunión en curso');
+            return;
+        }
+
+        // Buscar el asistente SOLO dentro de la reunión activa (modelo efímero por reunión)
+        $asistente = Asistente::query()
+            ->where('reunion_id', $reunion->id)
+            ->whereNotNull('telefono')
+            ->where('telefono', '!=', '')
+            ->get()
+            ->first(function (Asistente $a) use ($phoneDigits): bool {
+                $stored = preg_replace('/\D/', '', (string) $a->telefono);
+
+                return $stored === $phoneDigits
+                    || str_ends_with($stored, $phoneDigits)
+                    || str_ends_with($phoneDigits, $stored);
+            });
+
+        if (! $asistente) {
+            Log::info('WhatsApp: asistente no encontrado en la reunión en curso para teléfono', [
+                'phone' => $this->phone,
+                'reunion_id' => $reunion->id,
+            ]);
             return;
         }
 

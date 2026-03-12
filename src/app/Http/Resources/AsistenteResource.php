@@ -11,26 +11,19 @@ class AsistenteResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'usuario_id' => $this->usuario_id,
-            'nombre' => $this->nombre,
-            'documento' => $this->documento,
+            'reunion_id' => $this->reunion_id,
             'telefono' => $this->telefono,
-            'codigo_acceso' => $this->codigo_acceso,
-            'barcode_numero' => $this->barcode_numero,
-            'tipo_asistente' => $this->tipo_asistente,
+            'codigo_barras' => $this->codigo_barras,
             'inmuebles' => $this->whenLoaded('inmuebles', function () {
-                return $this->inmuebles->map(function ($inmueble): array {
-                    return [
-                        'id' => $inmueble->id,
-                        'nomenclatura' => $inmueble->nomenclatura,
-                        'coeficiente' => (float) ($inmueble->pivot->coeficiente ?? $inmueble->coeficiente),
-                        'poder_url' => $inmueble->pivot->poder_url,
-                    ];
-                });
+                return $this->inmuebles->map(fn ($inmueble) => [
+                    'id' => $inmueble->id,
+                    'nomenclatura' => $inmueble->nomenclatura,
+                    'coeficiente' => (float) ($inmueble->pivot->coeficiente ?? $inmueble->coeficiente),
+                    'poder_url' => $inmueble->pivot->poder_url,
+                ]);
             }),
             'created_at' => optional($this->created_at)?->toIso8601String(),
             'updated_at' => optional($this->updated_at)?->toIso8601String(),
-            'deleted_at' => optional($this->deleted_at)?->toIso8601String(),
         ];
     }
 }

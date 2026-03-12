@@ -16,7 +16,7 @@ class StoreOpcionRequest extends FormRequest
         return [
             'pregunta_id' => ['required', 'exists:preguntas,id'],
             'texto' => ['required', 'string', 'max:255'],
-            'orden' => ['sometimes', 'integer', 'min:1'],
+            'orden' => ['sometimes', 'nullable', 'integer', 'min:1'],
         ];
     }
 }

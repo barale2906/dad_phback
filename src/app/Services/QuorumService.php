@@ -54,7 +54,8 @@ class QuorumService
         return DB::transaction(function () use ($reunion): Pregunta {
             $pregunta = $reunion->preguntas()->create([
                 'pregunta' => 'Verificacion de quorum',
-                'estado' => 'inactiva',
+                'tipo' => 'QUORUM_CHECK',
+                'estado' => 'abierta',
                 'orden' => 0,
             ]);
 
