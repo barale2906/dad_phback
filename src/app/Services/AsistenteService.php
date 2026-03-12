@@ -25,6 +25,8 @@ class AsistenteService
             $this->guardBarcodeEdition((int) $data['codigo_barras']);
         }
 
+        $this->guardInmueblesUnicos($reunion, array_column($data['inmuebles'], 'inmueble_id'));
+
         $asistente = Asistente::query()->create([
             'reunion_id' => $reunion->id,
             'telefono' => $data['telefono'] ?? null,
@@ -160,6 +162,30 @@ class AsistenteService
         }
 
         $asistente->inmuebles()->sync($syncData);
+    }
+
+    /**
+     * Verifica que ninguno de los inmuebles indicados esté ya registrado
+     * por otro asistente en la misma reunión.
+     *
+     * @param  int[]  $inmuebleIds
+     *
+     * @throws RuntimeException
+     */
+    private function guardInmueblesUnicos(Reunion $reunion, array $inmuebleIds): void
+    {
+        $ocupados = DB::table('asistente_inmueble')
+            ->join('asistentes', 'asistente_inmueble.asistente_id', '=', 'asistentes.id')
+            ->where('asistentes.reunion_id', $reunion->id)
+            ->whereIn('asistente_inmueble.inmueble_id', $inmuebleIds)
+            ->pluck('asistente_inmueble.inmueble_id')
+            ->toArray();
+
+        if (! empty($ocupados)) {
+            throw new RuntimeException(
+                'Los siguientes inmuebles ya están registrados en esta reunión: '.implode(', ', $ocupados).'.'
+            );
+        }
     }
 
     /**
