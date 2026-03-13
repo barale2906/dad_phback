@@ -78,6 +78,7 @@ class AsistenteController extends Controller
      *
      * @response 201 { "message": "Asistente registrado correctamente.", "data": { "id": 1, "reunion_id": 1, "telefono": "573001234567", "codigo_barras": 42, "inmuebles": [] } }
      * @response 422 scenario="Reunión no en curso" { "message": "Solo se pueden registrar asistentes en una reunión en curso." }
+     * @response 422 scenario="Quórum cerrado" { "message": "No se pueden registrar asistentes porque la pregunta de quórum ya fue cerrada." }
      * @response 409 scenario="Barcode bloqueado" { "message": "No se puede asignar o cambiar el codigo_barras mientras exista una votacion abierta." }
      */
     public function store(StoreAsistenteRequest $request, Reunion $reunion): JsonResponse
@@ -93,7 +94,10 @@ class AsistenteController extends Controller
         try {
             $asistente = $this->asistenteService->create($reunion, $request->validated());
         } catch (RuntimeException $exception) {
-            return response()->json(['message' => $exception->getMessage()], 409);
+            $isQuorumCerrado = str_contains($exception->getMessage(), 'quórum ya fue cerrada');
+            $status = $isQuorumCerrado ? 422 : 409;
+
+            return response()->json(['message' => $exception->getMessage()], $status);
         }
 
         return response()->json([

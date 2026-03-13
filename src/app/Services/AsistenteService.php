@@ -24,6 +24,8 @@ class AsistenteService
      */
     public function create(Reunion $reunion, array $data): Asistente
     {
+        $this->guardQuorumCerrado($reunion);
+
         if (! empty($data['codigo_barras'])) {
             $this->guardBarcodeEdition((int) $data['codigo_barras']);
         }
@@ -221,6 +223,27 @@ class AsistenteService
         if (! empty($ocupados)) {
             throw new RuntimeException(
                 'Los siguientes inmuebles ya están registrados en esta reunión: '.implode(', ', $ocupados).'.'
+            );
+        }
+    }
+
+    /**
+     * Bloquea el registro de asistentes cuando la pregunta de quórum ya fue cerrada.
+     * Una vez cerrado el quórum no tiene sentido incorporar nuevos asistentes porque
+     * tampoco se podrán registrar sus respuestas/presencia en dicha pregunta.
+     *
+     * @throws RuntimeException
+     */
+    private function guardQuorumCerrado(Reunion $reunion): void
+    {
+        $quorumCerrado = $reunion->preguntas()
+            ->where('tipo', 'QUORUM_CHECK')
+            ->where('estado', 'cerrada')
+            ->exists();
+
+        if ($quorumCerrado) {
+            throw new RuntimeException(
+                'No se pueden registrar asistentes porque la pregunta de quórum ya fue cerrada.'
             );
         }
     }
