@@ -66,6 +66,20 @@ class BroadcastVotacionJob implements ShouldQueue
             $opcionesData
         );
 
+        // Fan-out: un job por asistente con teléfono registrado
+        $asistentes = $pregunta->reunion
+            ->asistentes()
+            ->whereNotNull('telefono')
+            ->where('telefono', '!=', '')
+            ->get();
+
+        // Limpiar sesiones de registro activas: si un residente quedó a mitad del
+        // flujo de asistencia cuando se abre la votación, su sesión se descarta
+        // para que pueda votar directamente al responder el mensaje de broadcast.
+        foreach ($asistentes as $asistente) {
+            $conversationService->clearSession((string) $asistente->telefono);
+        }
+
         // Construir el mensaje que recibirán los asistentes
         $lista = '';
         foreach ($opcionesData as $op) {
@@ -76,13 +90,6 @@ class BroadcastVotacionJob implements ShouldQueue
         $opcionesValidas = implode(', ', range(1, $totalOpciones));
 
         $mensaje = "📋 *Nueva votación*\n\n{$pregunta->pregunta}\n\n{$lista}\nResponde con *{$opcionesValidas}*.";
-
-        // Fan-out: un job por asistente con teléfono registrado
-        $asistentes = $pregunta->reunion
-            ->asistentes()
-            ->whereNotNull('telefono')
-            ->where('telefono', '!=', '')
-            ->get();
 
         foreach ($asistentes as $asistente) {
             EnviarPreguntaWhatsAppJob::dispatch($asistente->telefono, $mensaje);
