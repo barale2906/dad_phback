@@ -52,6 +52,42 @@ class AsistenteService
         return $asistente->load('inmuebles');
     }
 
+    /**
+     * Registra un asistente que llega después de que el quórum fue cerrado.
+     *
+     * Idéntico a create() pero omite la restricción de quórum cerrado, permitiendo
+     * incorporar tardíos con aprobación de la asamblea. El asistente queda registrado
+     * en la tabla y recibirá las próximas votaciones por WhatsApp si aportó teléfono.
+     * No se registra presencia en la pregunta de quórum (ya está cerrada).
+     */
+    public function registroTardio(Reunion $reunion, array $data): Asistente
+    {
+        if (! empty($data['codigo_barras'])) {
+            $this->guardBarcodeEdition((int) $data['codigo_barras']);
+        }
+
+        $asistente = $this->findExistingAsistente($reunion, $data);
+
+        $inmuebleIds = array_column($data['inmuebles'], 'inmueble_id');
+
+        if ($asistente) {
+            $this->guardInmueblesUnicos($reunion, $inmuebleIds, $asistente->id);
+            $this->attachInmuebles($asistente, $data['inmuebles']);
+        } else {
+            $this->guardInmueblesUnicos($reunion, $inmuebleIds);
+
+            $asistente = Asistente::query()->create([
+                'reunion_id'    => $reunion->id,
+                'telefono'      => $data['telefono'] ?? null,
+                'codigo_barras' => $data['codigo_barras'] ?? null,
+            ]);
+
+            $this->attachInmuebles($asistente, $data['inmuebles']);
+        }
+
+        return $asistente->load('inmuebles');
+    }
+
     public function delete(Asistente $asistente): void
     {
         $asistente->delete();

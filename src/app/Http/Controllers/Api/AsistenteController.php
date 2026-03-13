@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Asistente\CheckInAsistenteRequest;
 use App\Http\Requests\Asistente\CheckInByCodigoRequest;
+use App\Http\Requests\Asistente\RegistroTardioRequest;
 use App\Http\Requests\Asistente\StoreAsistenteRequest;
 use App\Http\Resources\AsistenteResource;
 use App\Models\Asistente;
@@ -145,6 +146,52 @@ class AsistenteController extends Controller
         return response()->json([
             'message' => 'Asistente eliminado correctamente.',
         ], 200);
+    }
+
+    /**
+     * Registro tardío — asistente que llega después del cierre del quórum.
+     *
+     * Permite registrar en la tabla de asistentes a una persona cuya incorporación
+     * fue aprobada por la asamblea una vez iniciada la reunión y cerrado el quórum.
+     * El asistente queda vinculado a sus inmuebles y recibirá las votaciones
+     * activas y futuras por WhatsApp si aportó su número de teléfono.
+     * No se registra presencia en la pregunta de quórum (ya está cerrada).
+     *
+     * @authenticated
+     *
+     * @urlParam reunion integer required ID de la reunión en curso. Example: 1
+     * @bodyParam telefono string nullable Teléfono en formato internacional sin +. Example: 573001234567
+     * @bodyParam codigo_barras integer nullable Número del barcode físico. Example: 42
+     * @bodyParam inmuebles array required Inmuebles que representa (mínimo 1).
+     * @bodyParam inmuebles[].inmueble_id integer required ID del inmueble. Example: 3
+     * @bodyParam inmuebles[].coeficiente number nullable Snapshot del coeficiente. Example: 1.234560
+     * @bodyParam inmuebles[].poder_url string nullable URL del documento de poder. Example: https://storage.example.com/poder.pdf
+     *
+     * @response 201 { "message": "Asistente tardío registrado correctamente.", "data": { "id": 5, "reunion_id": 1, "telefono": "573001234567", "codigo_barras": null, "inmuebles": [] } }
+     * @response 422 scenario="Reunión no en curso" { "message": "Solo se pueden registrar asistentes en una reunión en curso." }
+     * @response 409 scenario="Barcode bloqueado" { "message": "No se puede asignar o cambiar el codigo_barras mientras exista una votacion abierta." }
+     * @response 409 scenario="Inmueble ya registrado" { "message": "Los siguientes inmuebles ya están registrados en esta reunión: 3." }
+     */
+    public function registroTardio(RegistroTardioRequest $request, Reunion $reunion): JsonResponse
+    {
+        Gate::authorize('create', Asistente::class);
+
+        if ($reunion->estado !== 'en_curso') {
+            return response()->json([
+                'message' => 'Solo se pueden registrar asistentes en una reunión en curso.',
+            ], 422);
+        }
+
+        try {
+            $asistente = $this->asistenteService->registroTardio($reunion, $request->validated());
+        } catch (RuntimeException $exception) {
+            return response()->json(['message' => $exception->getMessage()], 409);
+        }
+
+        return response()->json([
+            'message' => 'Asistente tardío registrado correctamente.',
+            'data'    => new AsistenteResource($asistente),
+        ], 201);
     }
 
     // -------------------------------------------------------------------------

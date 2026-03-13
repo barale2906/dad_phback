@@ -40,6 +40,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Phone Number ID
+    |--------------------------------------------------------------------------
+    |
+    | ID del número de teléfono de WhatsApp Business (no el número en sí).
+    | Se obtiene en Meta App Dashboard → WhatsApp → Primeros pasos.
+    | Necesario para enviar mensajes salientes (respuestas al residente).
+    |
+    */
+
+    'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID', ''),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Access Token
+    |--------------------------------------------------------------------------
+    |
+    | Token de acceso permanente de la app de Meta (System User Token).
+    | Para desarrollo puede usarse el token temporal de 24h del dashboard.
+    | Para producción debe ser un System User Token sin expiración.
+    |
+    */
+
+    'access_token' => env('WHATSAPP_ACCESS_TOKEN', ''),
+
+    /*
+    |--------------------------------------------------------------------------
     | Rate Limit
     |--------------------------------------------------------------------------
     |

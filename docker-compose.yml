@@ -33,7 +33,10 @@ services:
     build:
       context: .
       dockerfile: docker/php/Dockerfile
-    command: php artisan queue:work redis --queue=votaciones,whatsapp,default --sleep=3 --tries=3 --max-time=3600
+    # Local: 1 replica es suficiente para desarrollo y QA.
+    # Para simular producción: docker compose up --scale worker=8
+    # El comando replica exactamente el supervisor de producción.
+    command: php artisan queue:work redis --queue=votaciones,whatsapp,default --sleep=3 --tries=3 --timeout=60 --max-time=3600
     restart: unless-stopped
     depends_on:
       - app
@@ -55,6 +58,9 @@ services:
       POSTGRES_DB: uniph
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+    # max_connections=200: cubre 8 workers + PHP-FPM + herramientas admin con margen.
+    # Producción (HestiaCP): ajustar en /etc/postgresql/*/main/postgresql.conf
+    command: postgres -c max_connections=200
     ports:
       - "5432:5432"
     volumes:

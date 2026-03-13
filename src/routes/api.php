@@ -70,6 +70,9 @@ Route::middleware(['installed', 'auth:sanctum'])->group(function (): void {
     Route::get('/reuniones/{reunion}/asistentes', [AsistenteController::class, 'index']);
     Route::post('/reuniones/{reunion}/asistentes', [AsistenteController::class, 'store'])
         ->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA', 'throttle:registros');
+    // Registro tardío: permite incorporar asistentes después del cierre del quórum
+    Route::post('/reuniones/{reunion}/asistentes/registro-tardio', [AsistenteController::class, 'registroTardio'])
+        ->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA', 'throttle:registros');
     Route::get('/reuniones/{reunion}/asistentes/{asistente}', [AsistenteController::class, 'show']);
     Route::delete('/reuniones/{reunion}/asistentes/{asistente}', [AsistenteController::class, 'destroy'])
         ->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');

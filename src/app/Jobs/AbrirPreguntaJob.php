@@ -26,5 +26,10 @@ class AbrirPreguntaJob implements ShouldQueue
         }
 
         $preguntaService->abrir($pregunta);
+
+        // Difundir la votación por WhatsApp solo para preguntas de tipo VOTACION
+        if ($pregunta->tipo === 'VOTACION') {
+            BroadcastVotacionJob::dispatch($pregunta->id);
+        }
     }
 }
