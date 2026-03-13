@@ -74,9 +74,9 @@ fix-perms:
 show-urls:
 	@echo ""
 	@echo "=> Accesos:"
-	@echo "   App (Nginx): http://localhost:8000"
-	@echo "   Horizon:     http://localhost:8000/horizon"
-	@echo "   Docs API:    http://localhost:8000/docs/api"
+	@echo "   App (Nginx): http://localhost"
+	@echo "   Horizon:     http://localhost/horizon"
+	@echo "   Docs API:    http://localhost/docs/api"
 	@echo "   PostgreSQL:  localhost:5432 (postgres/postgres, db: uniph)"
 	@echo "   Redis:       localhost:6379"
 	@echo ""
@@ -86,6 +86,9 @@ horizon:
 
 queue:
 	docker compose exec app php artisan queue:work redis --queue=votaciones,whatsapp,default
+
+worker-logs:
+	docker compose logs -f worker
 
 test:
 	docker compose exec app php artisan test

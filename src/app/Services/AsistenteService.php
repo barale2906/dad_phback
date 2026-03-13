@@ -16,8 +16,11 @@ class AsistenteService
     }
 
     /**
-     * Crea un asistente para la reunión indicada y sincroniza sus inmuebles.
-     * El asistente es efímero: existe solo en el contexto de esa reunión.
+     * Registra un asistente para la reunión indicada y sincroniza sus inmuebles.
+     *
+     * Si ya existe un asistente con el mismo codigo_barras o telefono en la reunión,
+     * se reutiliza ese registro y se agregan los nuevos inmuebles sin eliminar los existentes.
+     * Esto permite que un operador registre los inmuebles de una misma persona en varios pasos.
      */
     public function create(Reunion $reunion, array $data): Asistente
     {
@@ -25,15 +28,24 @@ class AsistenteService
             $this->guardBarcodeEdition((int) $data['codigo_barras']);
         }
 
-        $this->guardInmueblesUnicos($reunion, array_column($data['inmuebles'], 'inmueble_id'));
+        $asistente = $this->findExistingAsistente($reunion, $data);
 
-        $asistente = Asistente::query()->create([
-            'reunion_id' => $reunion->id,
-            'telefono' => $data['telefono'] ?? null,
-            'codigo_barras' => $data['codigo_barras'] ?? null,
-        ]);
+        $inmuebleIds = array_column($data['inmuebles'], 'inmueble_id');
 
-        $this->syncInmuebles($asistente, $data['inmuebles']);
+        if ($asistente) {
+            $this->guardInmueblesUnicos($reunion, $inmuebleIds, $asistente->id);
+            $this->attachInmuebles($asistente, $data['inmuebles']);
+        } else {
+            $this->guardInmueblesUnicos($reunion, $inmuebleIds);
+
+            $asistente = Asistente::query()->create([
+                'reunion_id' => $reunion->id,
+                'telefono' => $data['telefono'] ?? null,
+                'codigo_barras' => $data['codigo_barras'] ?? null,
+            ]);
+
+            $this->attachInmuebles($asistente, $data['inmuebles']);
+        }
 
         return $asistente->load('inmuebles');
     }
@@ -148,7 +160,28 @@ class AsistenteService
         return array_merge($result, ['asistente' => $asistente->load('inmuebles')]);
     }
 
-    private function syncInmuebles(Asistente $asistente, array $inmuebles): void
+    /**
+     * Busca un asistente ya existente en la reunión con el mismo codigo_barras o telefono.
+     */
+    private function findExistingAsistente(Reunion $reunion, array $data): ?Asistente
+    {
+        $query = Asistente::query()->where('reunion_id', $reunion->id);
+
+        if (! empty($data['codigo_barras'])) {
+            return $query->where('codigo_barras', (int) $data['codigo_barras'])->first();
+        }
+
+        if (! empty($data['telefono'])) {
+            return $query->where('telefono', $data['telefono'])->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * Agrega inmuebles al asistente sin eliminar los ya vinculados.
+     */
+    private function attachInmuebles(Asistente $asistente, array $inmuebles): void
     {
         $syncData = [];
 
@@ -161,25 +194,29 @@ class AsistenteService
             ];
         }
 
-        $asistente->inmuebles()->sync($syncData);
+        $asistente->inmuebles()->syncWithoutDetaching($syncData);
     }
 
     /**
      * Verifica que ninguno de los inmuebles indicados esté ya registrado
-     * por otro asistente en la misma reunión.
+     * por OTRO asistente en la misma reunión.
      *
      * @param  int[]  $inmuebleIds
      *
      * @throws RuntimeException
      */
-    private function guardInmueblesUnicos(Reunion $reunion, array $inmuebleIds): void
+    private function guardInmueblesUnicos(Reunion $reunion, array $inmuebleIds, ?int $excludeAsistenteId = null): void
     {
-        $ocupados = DB::table('asistente_inmueble')
+        $query = DB::table('asistente_inmueble')
             ->join('asistentes', 'asistente_inmueble.asistente_id', '=', 'asistentes.id')
             ->where('asistentes.reunion_id', $reunion->id)
-            ->whereIn('asistente_inmueble.inmueble_id', $inmuebleIds)
-            ->pluck('asistente_inmueble.inmueble_id')
-            ->toArray();
+            ->whereIn('asistente_inmueble.inmueble_id', $inmuebleIds);
+
+        if ($excludeAsistenteId !== null) {
+            $query->where('asistentes.id', '!=', $excludeAsistenteId);
+        }
+
+        $ocupados = $query->pluck('asistente_inmueble.inmueble_id')->toArray();
 
         if (! empty($ocupados)) {
             throw new RuntimeException(

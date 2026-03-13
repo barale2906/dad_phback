@@ -47,7 +47,10 @@ class InmuebleService
             ];
         }
 
-        $headers = str_getcsv((string) array_shift($lines));
+        $firstLine = (string) array_shift($lines);
+        $delimiter = str_contains($firstLine, ';') ? ';' : ',';
+
+        $headers = str_getcsv($firstLine, $delimiter);
         $headerMap = [];
         foreach ($headers as $idx => $header) {
             $headerMap[Str::lower(trim($header))] = $idx;
@@ -68,13 +71,13 @@ class InmuebleService
         $actualizados = 0;
         $errores = [];
 
-        DB::transaction(function () use ($lines, $headerMap, &$creados, &$actualizados, &$errores): void {
+        DB::transaction(function () use ($lines, $headerMap, $delimiter, &$creados, &$actualizados, &$errores): void {
             foreach ($lines as $lineNumber => $line) {
                 $rowNumber = $lineNumber + 2;
-                $row = str_getcsv($line);
+                $row = str_getcsv($line, $delimiter);
 
                 $nomenclatura = trim((string) ($row[$headerMap['nomenclatura']] ?? ''));
-                $coeficienteRaw = trim((string) ($row[$headerMap['coeficiente']] ?? ''));
+                $coeficienteRaw = str_replace(',', '.', trim((string) ($row[$headerMap['coeficiente']] ?? '')));
                 $tipo = trim((string) ($row[$headerMap['tipo']] ?? ''));
 
                 if ($nomenclatura === '' || $coeficienteRaw === '' || $tipo === '') {

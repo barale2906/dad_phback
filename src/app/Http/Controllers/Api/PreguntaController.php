@@ -13,7 +13,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 
 class PreguntaController extends Controller
@@ -86,7 +85,7 @@ class PreguntaController extends Controller
     {
         Gate::authorize('update', $pregunta);
 
-        Queue::push(new AbrirPreguntaJob($pregunta->id));
+        AbrirPreguntaJob::dispatch($pregunta->id);
 
         return response()->json([
             'message' => 'Apertura de pregunta en proceso.',
@@ -98,7 +97,7 @@ class PreguntaController extends Controller
     {
         Gate::authorize('update', $pregunta);
 
-        Queue::push(new CerrarPreguntaJob($pregunta->id));
+        CerrarPreguntaJob::dispatch($pregunta->id);
 
         return response()->json([
             'message' => 'Cierre de pregunta en proceso.',
