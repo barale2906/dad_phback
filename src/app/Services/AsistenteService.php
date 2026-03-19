@@ -26,8 +26,8 @@ class AsistenteService
     {
         $this->guardQuorumCerrado($reunion);
 
-        if (! empty($data['codigo_barras'])) {
-            $this->guardBarcodeEdition((int) $data['codigo_barras']);
+        if (! empty($data['codigo_barras']) || ! empty($data['telefono'])) {
+            $this->guardIdentificacionConVotacionAbierta($reunion);
         }
 
         $asistente = $this->findExistingAsistente($reunion, $data);
@@ -62,8 +62,8 @@ class AsistenteService
      */
     public function registroTardio(Reunion $reunion, array $data): Asistente
     {
-        if (! empty($data['codigo_barras'])) {
-            $this->guardBarcodeEdition((int) $data['codigo_barras']);
+        if (! empty($data['codigo_barras']) || ! empty($data['telefono'])) {
+            $this->guardIdentificacionConVotacionAbierta($reunion);
         }
 
         $asistente = $this->findExistingAsistente($reunion, $data);
@@ -285,26 +285,28 @@ class AsistenteService
     }
 
     /**
-     * Bloquea la asignación o cambio del codigo_barras cuando hay una pregunta
-     * de tipo VOTACION abierta. Las preguntas QUORUM_CHECK no bloquean, permitiendo
-     * registrar asistentes con barcode incluso durante el paso de quórum.
+     * Bloquea la asignación o cambio de telefono o codigo_barras cuando hay una
+     * pregunta de tipo VOTACION abierta en la reunión indicada. Las preguntas
+     * QUORUM_CHECK no bloquean. Solo se consideran preguntas de la misma reunión.
+     * Aplica a registro normal, registro por WhatsApp y registro tardío.
      *
      * @throws RuntimeException
      */
-    private function guardBarcodeEdition(int $codigoBarras): void
+    private function guardIdentificacionConVotacionAbierta(Reunion $reunion): void
     {
         if (! Schema::hasTable('preguntas')) {
             return;
         }
 
         $hasOpenVotacion = DB::table('preguntas')
+            ->where('reunion_id', $reunion->id)
             ->where('estado', 'abierta')
             ->where('tipo', 'VOTACION')
             ->exists();
 
         if ($hasOpenVotacion) {
             throw new RuntimeException(
-                'No se puede asignar o cambiar el codigo_barras mientras exista una votacion abierta.'
+                'No se puede asignar o cambiar el telefono o codigo_barras mientras exista una votacion abierta.'
             );
         }
     }

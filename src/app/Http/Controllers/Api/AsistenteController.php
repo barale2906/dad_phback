@@ -80,7 +80,7 @@ class AsistenteController extends Controller
      * @response 201 { "message": "Asistente registrado correctamente.", "data": { "id": 1, "reunion_id": 1, "telefono": "573001234567", "codigo_barras": 42, "inmuebles": [] } }
      * @response 422 scenario="Reunión no en curso" { "message": "Solo se pueden registrar asistentes en una reunión en curso." }
      * @response 422 scenario="Quórum cerrado" { "message": "No se pueden registrar asistentes porque la pregunta de quórum ya fue cerrada." }
-     * @response 409 scenario="Barcode bloqueado" { "message": "No se puede asignar o cambiar el codigo_barras mientras exista una votacion abierta." }
+     * @response 409 scenario="Identificación bloqueada" { "message": "No se puede asignar o cambiar el telefono o codigo_barras mientras exista una votacion abierta." }
      */
     public function store(StoreAsistenteRequest $request, Reunion $reunion): JsonResponse
     {
@@ -169,7 +169,7 @@ class AsistenteController extends Controller
      *
      * @response 201 { "message": "Asistente tardío registrado correctamente.", "data": { "id": 5, "reunion_id": 1, "telefono": "573001234567", "codigo_barras": null, "inmuebles": [] } }
      * @response 422 scenario="Reunión no en curso" { "message": "Solo se pueden registrar asistentes en una reunión en curso." }
-     * @response 409 scenario="Barcode bloqueado" { "message": "No se puede asignar o cambiar el codigo_barras mientras exista una votacion abierta." }
+     * @response 409 scenario="Identificación bloqueada" { "message": "No se puede asignar o cambiar el telefono o codigo_barras mientras exista una votacion abierta." }
      * @response 409 scenario="Inmueble ya registrado" { "message": "Los siguientes inmuebles ya están registrados en esta reunión: 3." }
      */
     public function registroTardio(RegistroTardioRequest $request, Reunion $reunion): JsonResponse

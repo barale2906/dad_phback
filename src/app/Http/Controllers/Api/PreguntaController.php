@@ -9,6 +9,7 @@ use App\Http\Resources\PreguntaResource;
 use App\Jobs\AbrirPreguntaJob;
 use App\Jobs\CerrarPreguntaJob;
 use App\Models\Pregunta;
+use App\Services\QuorumService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,9 @@ use Illuminate\Support\Facades\Schema;
 
 class PreguntaController extends Controller
 {
+    public function __construct(private readonly QuorumService $quorumService)
+    {
+    }
     public function index(): AnonymousResourceCollection
     {
         Gate::authorize('viewAny', Pregunta::class);
@@ -119,6 +123,8 @@ class PreguntaController extends Controller
 
         $resultRows = $pregunta->opciones()->orderBy('orden')->get();
         $votesByOption = [];
+        $votaronUnidades = 0;
+        $votaronCoeficiente = 0.0;
 
         if (Schema::hasTable('votos')) {
             $votesByOption = DB::table('votos')
@@ -128,20 +134,43 @@ class PreguntaController extends Controller
                 ->get()
                 ->keyBy('opcion_id')
                 ->toArray();
+
+            $totalesVotantes = DB::table('votos')
+                ->join('inmuebles', 'votos.inmueble_id', '=', 'inmuebles.id')
+                ->where('votos.pregunta_id', $pregunta->id)
+                ->where('inmuebles.activo', true)
+                ->selectRaw('COUNT(DISTINCT votos.inmueble_id) as unidades, COALESCE(SUM(votos.coeficiente), 0) as coeficiente')
+                ->first();
+            $votaronUnidades = (int) ($totalesVotantes->unidades ?? 0);
+            $votaronCoeficiente = (float) ($totalesVotantes->coeficiente ?? 0);
         }
 
-        $results = $resultRows->map(fn ($opcion) => [
-            'opcion_id' => $opcion->id,
-            'texto' => $opcion->texto,
-            'votos' => (int) ($votesByOption[$opcion->id]->total_votos ?? 0),
-            'coeficiente' => (float) ($votesByOption[$opcion->id]->total_coeficiente ?? 0),
-        ]);
+        $asistencia = $this->quorumService->getAsistenciaRegistrada($pregunta->reunion);
+        $noVotaronUnidades = max(0, $asistencia['unidades'] - $votaronUnidades);
+        $noVotaronCoeficiente = max(0.0, $asistencia['coeficiente'] - $votaronCoeficiente);
+
+        $results = $resultRows->map(function ($opcion) use ($votesByOption) {
+            $row = $votesByOption[$opcion->id] ?? null;
+
+            return [
+                'opcion_id' => $opcion->id,
+                'texto' => $opcion->texto,
+                'votos' => (int) ($row->total_votos ?? 0),
+                'coeficiente' => (float) ($row->total_coeficiente ?? 0.0),
+            ];
+        });
 
         return response()->json([
             'data' => [
                 'pregunta_id' => $pregunta->id,
                 'tipo' => $pregunta->tipo,
                 'estado' => $pregunta->estado,
+                'asistencia_unidades' => $asistencia['unidades'],
+                'asistencia_coeficiente' => round($asistencia['coeficiente'], 6),
+                'votaron_unidades' => $votaronUnidades,
+                'votaron_coeficiente' => round($votaronCoeficiente, 6),
+                'no_votaron_unidades' => $noVotaronUnidades,
+                'no_votaron_coeficiente' => round($noVotaronCoeficiente, 6),
                 'resultados' => $results,
             ],
         ], 200);
@@ -170,8 +199,12 @@ class PreguntaController extends Controller
      *     "coeficiente_total": 100.0,
      *     "coeficiente_votante": 45.23,
      *     "inmuebles": [
-     *       { "inmueble_id": 3, "nomenclatura": "101", "coeficiente": 1.23456, "votado": true, "opcion_id": 2, "opcion_texto": "SI", "votado_at": "2026-03-11T10:35:00+00:00" },
-     *       { "inmueble_id": 7, "nomenclatura": "201", "coeficiente": 0.98765, "votado": false, "opcion_id": null, "opcion_texto": null, "votado_at": null }
+     *       { "inmueble_id": 3, "nomenclatura": "101", "coeficiente": 1.23456, "votado": true, "es_asistente": true, "opcion_id": 2, "opcion_texto": "SI", "votado_at": "2026-03-11T10:35:00+00:00" },
+     *       { "inmueble_id": 7, "nomenclatura": "201", "coeficiente": 0.98765, "votado": false, "es_asistente": true, "opcion_id": null, "opcion_texto": null, "votado_at": null }
+     *     ],
+     *     "inmuebles_asistentes": [
+     *       { "inmueble_id": 3, "nomenclatura": "101", "coeficiente": 1.23456, "votado": true, "es_asistente": true, "opcion_id": 2, "opcion_texto": "SI", "votado_at": "2026-03-11T10:35:00+00:00" },
+     *       { "inmueble_id": 7, "nomenclatura": "201", "coeficiente": 0.98765, "votado": false, "es_asistente": true, "opcion_id": null, "opcion_texto": null, "votado_at": null }
      *     ]
      *   }
      * }
@@ -197,6 +230,17 @@ class PreguntaController extends Controller
             ->get()
             ->keyBy('inmueble_id');
 
+        // Inmuebles que son asistentes en esta reunión (incluye registro normal y tardío)
+        $inmuebleIdsAsistentes = collect();
+        if (Schema::hasTable('asistente_inmueble')) {
+            $inmuebleIdsAsistentes = DB::table('asistente_inmueble')
+                ->join('asistentes', 'asistente_inmueble.asistente_id', '=', 'asistentes.id')
+                ->join('inmuebles', 'asistente_inmueble.inmueble_id', '=', 'inmuebles.id')
+                ->where('asistentes.reunion_id', $pregunta->reunion_id)
+                ->where('inmuebles.activo', true)
+                ->pluck('asistente_inmueble.inmueble_id');
+        }
+
         // Todos los inmuebles activos de la PH
         $inmuebles = DB::table('inmuebles')
             ->where('activo', true)
@@ -208,9 +252,10 @@ class PreguntaController extends Controller
         $coeficienteVotante = 0.0;
         $votaron = 0;
 
-        $detalle = $inmuebles->map(function ($inmueble) use ($votosPorInmueble, $ocultarRespuesta, &$totalCoeficiente, &$coeficienteVotante, &$votaron) {
+        $detalle = $inmuebles->map(function ($inmueble) use ($votosPorInmueble, $ocultarRespuesta, $inmuebleIdsAsistentes, &$totalCoeficiente, &$coeficienteVotante, &$votaron) {
             $totalCoeficiente += (float) $inmueble->coeficiente;
             $voto = $votosPorInmueble[$inmueble->id] ?? null;
+            $esAsistente = $inmuebleIdsAsistentes->contains($inmueble->id);
 
             if ($voto) {
                 $votaron++;
@@ -222,6 +267,7 @@ class PreguntaController extends Controller
                 'nomenclatura' => $inmueble->nomenclatura,
                 'coeficiente' => (float) $inmueble->coeficiente,
                 'votado' => $voto !== null,
+                'es_asistente' => $esAsistente,
                 'opcion_id' => ($voto && ! $ocultarRespuesta) ? $voto->opcion_id : null,
                 'opcion_texto' => ($voto && ! $ocultarRespuesta) ? $voto->opcion_texto : null,
                 'votado_at' => $voto ? $voto->votado_at : null,
@@ -229,6 +275,18 @@ class PreguntaController extends Controller
         });
 
         $total = $inmuebles->count();
+
+        $asistencia = $this->quorumService->getAsistenciaRegistrada($pregunta->reunion);
+        $noVotaronUnidades = max(0, $asistencia['unidades'] - $votaron);
+        $noVotaronCoeficiente = max(0.0, $asistencia['coeficiente'] - $coeficienteVotante);
+
+        // Listado de asistentes: primero los que votaron (con opción), luego los que no votaron
+        $inmueblesAsistentes = $detalle
+            ->filter(fn ($item) => $item['es_asistente'])
+            ->values()
+            ->sortByDesc('votado')
+            ->values()
+            ->all();
 
         return response()->json([
             'data' => [
@@ -240,7 +298,12 @@ class PreguntaController extends Controller
                 'inmuebles_pendientes' => $total - $votaron,
                 'coeficiente_total' => round($totalCoeficiente, 6),
                 'coeficiente_votante' => round($coeficienteVotante, 6),
+                'asistencia_unidades' => $asistencia['unidades'],
+                'asistencia_coeficiente' => round($asistencia['coeficiente'], 6),
+                'no_votaron_unidades' => $noVotaronUnidades,
+                'no_votaron_coeficiente' => round($noVotaronCoeficiente, 6),
                 'inmuebles' => $detalle,
+                'inmuebles_asistentes' => $inmueblesAsistentes,
             ],
         ], 200);
     }

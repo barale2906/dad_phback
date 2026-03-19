@@ -6,6 +6,7 @@ use App\Models\Pregunta;
 use App\Models\Reunion;
 use App\Models\Voto;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class QuorumService
 {
@@ -46,6 +47,34 @@ class QuorumService
             'coeficiente_presente' => $coefPresente,
             'porcentaje_unidades' => round($porcentajeUnidades, 2),
             'porcentaje_coeficiente' => round($porcentajeCoeficiente, 2),
+        ];
+    }
+
+    /**
+     * Obtiene la asistencia registrada en la reunión (todos los asistentes).
+     * Incluye registro normal (check-in PRESENTE) y registro tardío.
+     * Usado para calcular quiénes no votaron en preguntas de votación y para
+     * mostrar el total real de asistencia en resultados de quórum.
+     *
+     * @return array{unidades: int, coeficiente: float}
+     */
+    public function getAsistenciaRegistrada(Reunion $reunion): array
+    {
+        if (! Schema::hasTable('asistente_inmueble')) {
+            return ['unidades' => 0, 'coeficiente' => 0.0];
+        }
+
+        $asistencia = DB::table('asistente_inmueble')
+            ->join('asistentes', 'asistente_inmueble.asistente_id', '=', 'asistentes.id')
+            ->join('inmuebles', 'asistente_inmueble.inmueble_id', '=', 'inmuebles.id')
+            ->where('asistentes.reunion_id', $reunion->id)
+            ->where('inmuebles.activo', true)
+            ->selectRaw('COUNT(DISTINCT asistente_inmueble.inmueble_id) as unidades, COALESCE(SUM(asistente_inmueble.coeficiente), 0) as coeficiente')
+            ->first();
+
+        return [
+            'unidades' => (int) ($asistencia->unidades ?? 0),
+            'coeficiente' => (float) ($asistencia->coeficiente ?? 0),
         ];
     }
 

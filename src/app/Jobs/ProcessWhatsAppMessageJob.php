@@ -245,6 +245,8 @@ class ProcessWhatsAppMessageJob implements ShouldQueue
                     => 'Este inmueble ya fue registrado por otra persona. Comunícate con logística.',
                 str_contains($e->getMessage(), 'pregunta de quórum abierta')
                     => 'El registro de asistencia aún no está habilitado. Espera a que abra la verificación de quórum.',
+                str_contains($e->getMessage(), 'votacion abierta')
+                    => 'No se puede registrar mientras haya una votación en curso. Espera a que cierre.',
                 default => 'No fue posible registrar tu asistencia. Comunícate con logística.',
             };
 
