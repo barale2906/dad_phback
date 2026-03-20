@@ -3,14 +3,38 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\ReunionEstadisticasResource;
 use App\Models\Reunion;
+use App\Services\ReunionEstadisticasCsvExporter;
+use App\Services\ReunionEstadisticasService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
+/**
+ * Controlador de reportes de reunión.
+ *
+ * Genera actas en PDF, estadísticas completas (JSON) y exportación CSV.
+ */
 class ReporteReunionController extends Controller
 {
+    public function __construct(
+        private readonly ReunionEstadisticasService $estadisticasService,
+        private readonly ReunionEstadisticasCsvExporter $csvExporter
+    ) {
+    }
+
+    /**
+     * Descarga el acta de la reunión en formato PDF.
+     *
+     * @authenticated
+     *
+     * @urlParam reunion integer required ID de la reunión. Example: 1
+     *
+     * @response 200 binary/octet-stream
+     */
     public function actaPdf(Reunion $reunion): Response
     {
         Gate::authorize('view', $reunion);
@@ -30,41 +54,105 @@ class ReporteReunionController extends Controller
         return $pdf->download($fileName);
     }
 
+    /**
+     * Estadísticas completas de la reunión.
+     *
+     * Incluye:
+     * - Orden del día con nivel de cumplimiento (items ejecutados / total)
+     * - Asistencia: registrados (con código de barras o teléfono) y no registrados
+     * - Todas las votaciones: pregunta, opciones, resultados y detalle por inmueble
+     *   (quienes votaron y quienes no entre los asistentes)
+     *
+     * @authenticated
+     *
+     * @urlParam reunion integer required ID de la reunión. Example: 1
+     * @queryParam ocultar_respuesta boolean Si true, oculta la opción elegida en el detalle de votos por inmueble. Default: false. Example: false
+     *
+     * @response 200 {
+     *   "data": {
+     *     "reunion_id": 1,
+     *     "orden_dia": {
+     *       "items": [{"id": 1, "orden": 1, "titulo": "...", "descripcion": null, "ejecutado": true}],
+     *       "total": 5,
+     *       "ejecutados": 3,
+     *       "nivel_cumplimiento": 60.0
+     *     },
+     *     "asistencia": {
+     *       "registrados": [{"asistente_id": 1, "codigo_barras": 42, "telefono": "573001234567", "identificacion": "42", "inmuebles": [{"inmueble_id": 1, "nomenclatura": "101", "coeficiente": 1.23}]}],
+     *       "no_registrados": [{"inmueble_id": 2, "nomenclatura": "102", "coeficiente": 0.98, "telefono": null}],
+     *       "total_unidades": 50,
+     *       "unidades_registradas": 20,
+     *       "unidades_no_registradas": 30
+     *     },
+     *     "votaciones": [{
+     *       "pregunta_id": 1,
+     *       "pregunta": "¿Aprueba el presupuesto?",
+     *       "tipo": "VOTACION",
+     *       "estado": "cerrada",
+     *       "disponible": true,
+     *       "resultados": {...},
+     *       "inmuebles_asistentes": [...]
+     *     }]
+     *   }
+     * }
+     */
     public function estadisticas(Reunion $reunion): JsonResponse
     {
         Gate::authorize('view', $reunion);
 
-        $reunion->load([
-            'preguntas.opciones',
-        ]);
+        $ocultarRespuesta = filter_var(
+            request()->query('ocultar_respuesta', false),
+            FILTER_VALIDATE_BOOL
+        );
 
-        $estadisticas = [];
+        $estadisticas = $this->estadisticasService->generar($reunion, $ocultarRespuesta);
 
-        foreach ($reunion->preguntas as $pregunta) {
-            $resultados = app('db')->table('votos')
-                ->selectRaw('opcion_id, COUNT(*) as total_votos, COALESCE(SUM(coeficiente), 0) as suma_coeficiente')
-                ->where('pregunta_id', $pregunta->id)
-                ->groupBy('opcion_id')
-                ->pluck('total_votos', 'opcion_id');
-
-            $estadisticas[] = [
-                'pregunta_id' => $pregunta->id,
-                'pregunta' => $pregunta->pregunta,
-                'resultados' => $pregunta->opciones->map(function ($opcion) use ($resultados) {
-                    $total = (int) ($resultados[$opcion->id] ?? 0);
-
-                    return [
-                        'opcion_id' => $opcion->id,
-                        'texto' => $opcion->texto,
-                        'total_votos' => $total,
-                    ];
-                })->all(),
-            ];
-        }
+        $data = array_merge(
+            ['reunion_id' => $reunion->id],
+            $estadisticas
+        );
 
         return response()->json([
-            'data' => $estadisticas,
+            'data' => (new ReunionEstadisticasResource($data))->toArray(request()),
         ]);
     }
-}
 
+    /**
+     * Descarga las estadísticas de la reunión en formato CSV.
+     *
+     * Incluye orden del día, asistencia y votaciones en un archivo
+     * compatible con Excel (UTF-8 con BOM).
+     *
+     * @authenticated
+     *
+     * @urlParam reunion integer required ID de la reunión. Example: 1
+     * @queryParam ocultar_respuesta boolean Si true, oculta la opción elegida en el detalle de votos. Default: false. Example: false
+     *
+     * @response 200 binary/octet-stream
+     */
+    public function estadisticasCsv(Reunion $reunion): StreamedResponse
+    {
+        Gate::authorize('view', $reunion);
+
+        $ocultarRespuesta = filter_var(
+            request()->query('ocultar_respuesta', false),
+            FILTER_VALIDATE_BOOL
+        );
+
+        $estadisticas = $this->estadisticasService->generar($reunion, $ocultarRespuesta);
+        $data = array_merge(['reunion_id' => $reunion->id], $estadisticas);
+
+        $csv = $this->csvExporter->exportar($data);
+
+        $fileName = 'estadisticas-reunion-' . $reunion->id . '.csv';
+
+        return response()->streamDownload(
+            fn () => print($csv),
+            $fileName,
+            [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            ]
+        );
+    }
+}

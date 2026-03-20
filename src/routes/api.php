@@ -152,6 +152,7 @@ Route::middleware(['installed', 'auth:sanctum'])->group(function (): void {
 
     Route::get('/reportes/reuniones/{reunion}/acta-pdf', [ReporteReunionController::class, 'actaPdf'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA,LECTURA');
     Route::get('/reportes/reuniones/{reunion}/estadisticas', [ReporteReunionController::class, 'estadisticas'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA,LECTURA');
+    Route::get('/reportes/reuniones/{reunion}/estadisticas/csv', [ReporteReunionController::class, 'estadisticasCsv'])->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA,LECTURA');
 
     Route::get('/metrics', MetricsController::class)->middleware('role:SUPER_ADMIN,ADMIN_PH');
 
