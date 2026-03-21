@@ -77,6 +77,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Código de país por defecto
+    |--------------------------------------------------------------------------
+    |
+    | Prefijo numérico de país que se antepone a los números de teléfono que
+    | no incluyan código de país al enviar mensajes salientes.
+    | Colombia = 57, México = 52, Argentina = 54, etc.
+    |
+    */
+
+    'default_country_code' => env('WHATSAPP_DEFAULT_COUNTRY_CODE', '57'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Comandos reconocidos
     |--------------------------------------------------------------------------
     |

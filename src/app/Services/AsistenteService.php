@@ -62,10 +62,6 @@ class AsistenteService
      */
     public function registroTardio(Reunion $reunion, array $data): Asistente
     {
-        if (! empty($data['codigo_barras']) || ! empty($data['telefono'])) {
-            $this->guardIdentificacionConVotacionAbierta($reunion);
-        }
-
         $asistente = $this->findExistingAsistente($reunion, $data);
 
         $inmuebleIds = array_column($data['inmuebles'], 'inmueble_id');

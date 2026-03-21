@@ -8,9 +8,11 @@ use App\Http\Requests\Asistente\CheckInByCodigoRequest;
 use App\Http\Requests\Asistente\RegistroTardioRequest;
 use App\Http\Requests\Asistente\StoreAsistenteRequest;
 use App\Http\Resources\AsistenteResource;
+use App\Jobs\EnviarPreguntaWhatsAppJob;
 use App\Models\Asistente;
 use App\Models\Reunion;
 use App\Services\AsistenteService;
+use App\Services\WhatsAppConversationService;
 use Dedoc\Scramble\Attributes\Group;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -28,8 +30,10 @@ use RuntimeException;
 #[Group('Asistentes', weight: 4)]
 class AsistenteController extends Controller
 {
-    public function __construct(private readonly AsistenteService $asistenteService)
-    {
+    public function __construct(
+        private readonly AsistenteService $asistenteService,
+        private readonly WhatsAppConversationService $conversationService,
+    ) {
     }
 
     /**
@@ -186,6 +190,25 @@ class AsistenteController extends Controller
             $asistente = $this->asistenteService->registroTardio($reunion, $request->validated());
         } catch (RuntimeException $exception) {
             return response()->json(['message' => $exception->getMessage()], 409);
+        }
+
+        // Si hay una votación activa y el tardío tiene teléfono, enviarle la pregunta de inmediato
+        if (filled($asistente->telefono)) {
+            $activeVote = $this->conversationService->getActiveVote($reunion->id);
+
+            if ($activeVote !== null) {
+                $lista = '';
+                foreach ($activeVote['opciones'] as $op) {
+                    $lista .= "{$op['numero']}. {$op['texto']}\n";
+                }
+
+                $totalOpciones   = count($activeVote['opciones']);
+                $opcionesValidas = implode(', ', range(1, $totalOpciones));
+
+                $mensaje = "📋 *Nueva votación*\n\n{$activeVote['titulo']}\n\n{$lista}\nResponde con *{$opcionesValidas}*.";
+
+                EnviarPreguntaWhatsAppJob::dispatch($asistente->telefono, $mensaje);
+            }
         }
 
         return response()->json([

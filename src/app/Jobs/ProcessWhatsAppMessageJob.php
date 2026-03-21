@@ -86,7 +86,7 @@ class ProcessWhatsAppMessageJob implements ShouldQueue
         $comando = $whatsappService->interpretCommand($text);
 
         if ($comando !== null && in_array($comando, ['si', 'no'], true)) {
-            $this->handleVoto($phone, $comando, $votoService);
+            $this->handleVoto($phone, $comando, $votoService, $senderService);
 
             return;
         }
@@ -311,13 +311,18 @@ class ProcessWhatsAppMessageJob implements ShouldQueue
         }
 
         try {
-            $votoService->registrarPorAsistente($pregunta, $opcion, $asistente, $phone);
-            $senderService->sendText($phone, "✅ Voto registrado: *{$opcion->texto}*. ¡Gracias!");
+            $registrado = $votoService->registrarPorAsistente($pregunta, $opcion, $asistente, $phone);
+
+            if ($registrado) {
+                $senderService->sendText($phone, "✅ Voto registrado: *{$opcion->texto}*. ¡Gracias!");
+            } else {
+                $senderService->sendText($phone, '⚠️ Ya habías registrado tu voto en esta pregunta.');
+            }
         } catch (\Throwable $e) {
             $yaVoto = str_contains($e->getMessage(), 'Duplicate') || str_contains($e->getMessage(), 'unique');
 
             $mensaje = $yaVoto
-                ? 'Ya registraste tu voto en esta pregunta.'
+                ? '⚠️ Ya habías registrado tu voto en esta pregunta.'
                 : 'No fue posible registrar tu voto. Intenta de nuevo.';
 
             $senderService->sendText($phone, $mensaje);
@@ -331,7 +336,7 @@ class ProcessWhatsAppMessageJob implements ShouldQueue
 
     // ── Voto SI / NO (asistente ya registrado en la reunión) ─────────────────
 
-    private function handleVoto(string $phone, string $comando, VotoService $votoService): void
+    private function handleVoto(string $phone, string $comando, VotoService $votoService, WhatsAppSenderService $senderService): void
     {
         $phoneDigits = preg_replace('/\D/', '', $phone);
 
@@ -371,7 +376,13 @@ class ProcessWhatsAppMessageJob implements ShouldQueue
         }
 
         try {
-            $votoService->registrarPorAsistente($pregunta, $opcion, $asistente, $phone);
+            $registrado = $votoService->registrarPorAsistente($pregunta, $opcion, $asistente, $phone);
+
+            if ($registrado) {
+                $senderService->sendText($phone, "✅ Voto registrado: *{$opcion->texto}*. ¡Gracias!");
+            } else {
+                $senderService->sendText($phone, '⚠️ Ya habías registrado tu voto en esta pregunta.');
+            }
         } catch (\Throwable $e) {
             Log::warning('[WA] Error al registrar voto.', [
                 'error' => $e->getMessage(),

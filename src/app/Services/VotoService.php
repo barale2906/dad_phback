@@ -72,15 +72,23 @@ class VotoService
         }
     }
 
-    public function registrarPorAsistente(Pregunta $pregunta, Opcion $opcion, Asistente $asistente, ?string $telefono): void
+    public function registrarPorAsistente(Pregunta $pregunta, Opcion $opcion, Asistente $asistente, ?string $telefono): bool
     {
         $inmuebles = $asistente->inmuebles()
             ->where('inmuebles.activo', true)
             ->get();
 
+        $registrado = false;
+
         foreach ($inmuebles as $inmueble) {
-            $this->registrarPorInmueble($pregunta, $opcion, $inmueble, $asistente, $telefono);
+            $voto = $this->registrarPorInmueble($pregunta, $opcion, $inmueble, $asistente, $telefono);
+
+            if ($voto !== null) {
+                $registrado = true;
+            }
         }
+
+        return $registrado;
     }
 }
 

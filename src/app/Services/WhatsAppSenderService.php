@@ -9,6 +9,8 @@ class WhatsAppSenderService
 {
     public function sendText(string $to, string $message): void
     {
+        $to = $this->normalizePhone($to);
+
         if (! config('whatsapp.enabled')) {
             Log::info('[WA-Sender] Webhook deshabilitado — mensaje no enviado.', [
                 'to' => $to,
@@ -45,5 +47,21 @@ class WhatsAppSenderService
                 'error'  => $response->json('error'),
             ]);
         }
+    }
+
+    /**
+     * Normaliza el teléfono al formato E.164 requerido por la API de Meta.
+     * Si el número no empieza con el código de país configurado, lo antepone.
+     */
+    private function normalizePhone(string $phone): string
+    {
+        $digits      = preg_replace('/\D/', '', $phone);
+        $countryCode = (string) config('whatsapp.default_country_code', '57');
+
+        if (! str_starts_with($digits, $countryCode)) {
+            $digits = $countryCode.$digits;
+        }
+
+        return $digits;
     }
 }
