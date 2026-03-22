@@ -92,11 +92,56 @@ class ProcessWhatsAppMessageJob implements ShouldQueue
         }
 
         // ── 4. Cualquier otro mensaje: iniciar flujo de registro ──────────────
+        $mensajeBloqueo = $this->getMensajeBloqueoRegistro($reunion);
+
+        if ($mensajeBloqueo !== null) {
+            $senderService->sendText($phone, $mensajeBloqueo);
+
+            return;
+        }
+
         $conversationService->startSession($phone, $reunion->id);
         $senderService->sendText(
             $phone,
             "¡Hola! Para registrar tu asistencia a la asamblea envía el código de tu inmueble.\n\nEjemplo: *1101*"
         );
+    }
+
+    /**
+     * Determina si el registro de asistencia está habilitado en este momento.
+     * Retorna el mensaje de bloqueo a enviar al usuario, o null si está abierto.
+     */
+    private function getMensajeBloqueoRegistro(Reunion $reunion): ?string
+    {
+        $quorumCerrado = $reunion->preguntas()
+            ->where('tipo', 'QUORUM_CHECK')
+            ->where('estado', 'cerrada')
+            ->exists();
+
+        if ($quorumCerrado) {
+            return 'El registro de asistencia ya fue cerrado para esta reunión.';
+        }
+
+        $votacionAbierta = $reunion->preguntas()
+            ->where('tipo', 'VOTACION')
+            ->where('estado', 'abierta')
+            ->exists();
+
+        if ($votacionAbierta) {
+            return 'Hay una votación en curso. El registro de asistencia no está disponible en este momento.';
+        }
+
+        $quorumAbierto = $reunion->preguntas()
+            ->where('tipo', 'QUORUM_CHECK')
+            ->where('estado', 'abierta')
+            ->whereHas('opciones', fn ($q) => $q->whereRaw("UPPER(texto) LIKE '%PRESENTE%'"))
+            ->exists();
+
+        if (! $quorumAbierto) {
+            return 'El registro de asistencia aún no está habilitado. Espera a que el administrador lo abra.';
+        }
+
+        return null;
     }
 
     // ── Paso 1: validar nomenclatura del inmueble ──────────────────────────────
