@@ -12,6 +12,7 @@
         "laravel/horizon": "^5.45",
         "laravel/sanctum": "^4.3",
         "laravel/tinker": "^2.10.1",
+        "picqer/php-barcode-generator": "^3.2",
         "predis/predis": "^3.4"
     },
     "require-dev": {
