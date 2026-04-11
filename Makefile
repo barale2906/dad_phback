@@ -1,4 +1,4 @@
-.PHONY: up down start stop restart ps logs app db artisan composer migrate key env init fix-perms show-urls horizon queue test
+.PHONY: up down start stop restart ps logs app db artisan composer migrate key env init fix-perms show-urls horizon queue test stress-test
 
 up:
 	@echo "=> Levantando contenedores (build incluido)..."
@@ -95,6 +95,20 @@ test:
 
 docs-export:
 	docker compose exec app php artisan scramble:export
+
+stress-test:
+	@if [ -z '$(TOKEN)' ]; then echo "ERROR: Debes pasar el token. Uso: make stress-test TOKEN='tu_bearer_token'"; exit 1; fi
+	@echo "=> Lanzando prueba de estrés contra https://uniph-api.gislasas.com ..."
+	@mkdir -p stress-test/results
+	docker run --rm \
+		-v $(PWD)/stress-test/simulate.js:/simulate.js \
+		-v $(PWD)/stress-test/results:/results \
+		-e BASE_URL=https://uniph-api.gislasas.com \
+		-e 'TOKEN=$(TOKEN)' \
+		grafana/k6 run \
+		--out json=/results/resultados.json \
+		/simulate.js
+	@echo "=> Resultados guardados en stress-test/results/resultados.json"
 
 %:
 	@:

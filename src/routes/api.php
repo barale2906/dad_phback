@@ -157,5 +157,5 @@ Route::middleware(['installed', 'auth:sanctum'])->group(function (): void {
     Route::get('/metrics', MetricsController::class)->middleware('role:SUPER_ADMIN,ADMIN_PH');
 
     Route::post('/internal/simulate-message', InternalSimulateMessageController::class)
-        ->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA');
+        ->middleware('role:SUPER_ADMIN,ADMIN_PH,LOGISTICA', 'log_simulate_perf');
 });
